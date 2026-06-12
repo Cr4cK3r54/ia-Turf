@@ -12,14 +12,14 @@ st.markdown("""
         padding: 18px; 
         border-radius: 12px; 
         background-color: #ffffff; 
-        border-left: 6px solid #e65100; 
+        border-left: 6px solid #2e7d32; 
         box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         margin-top: 15px;
     }
     .stButton>button { 
         width: 100%; 
         height: 50px;
-        background-color: #e65100; 
+        background-color: #2e7d32; 
         color: white; 
         border-radius: 12px; 
         font-weight: bold; 
@@ -32,6 +32,9 @@ st.markdown("""
         border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         margin-top: 30px;
+    }
+    textarea {
+        font-size: 15px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -60,103 +63,74 @@ else:
     # --- INTERFACE APPLICATION AUTONOME ---
     col_header, col_logout = st.columns([4, 1])
     with col_header:
-        st.markdown("<h2 style='margin-bottom: 0;'>🧠 IA Turf Autonome</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='margin-bottom: 0;'>🧠 IA Turf Expert</h2>", unsafe_allow_html=True)
     with col_logout:
         if st.button("🚪"):
             st.session_state['authentified'] = False
             st.rerun()
             
-    st.markdown("<p style='color: gray; font-size: 14px;'>Génération automatique des courses du jour et de demain</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: gray; font-size: 14px;'>Analyse mathématique basée sur de vraies données</p>", unsafe_allow_html=True)
 
-    # Sauvegarde de la clé API
+    # Clé API
     API_KEY = st.sidebar.text_input("Clé API Google Gemini", type="password", value="")
 
-    # Sélection de la date
-    st.markdown("### 📅 Choisir la date")
-    choix_date = st.radio("Afficher le programme de :", ["Aujourd'hui", "Demain"], horizontal=True)
+    st.markdown("### 📝 Données de la course")
     
-    target_date = datetime.date.today() if choix_date == "Aujourd'hui" else datetime.date.today() + datetime.timedelta(days=1)
-    date_str = target_date.strftime("%d/%m/%Y")
+    nom_course = st.text_input("Nom de la course", placeholder="Ex: R1 C1 - Prix d'Amérique")
+    
+    st.markdown("**Copier-coller le pronostic de la presse ou la liste des partants :**")
+    st.caption("Ouvre vite ton appli de Turf (PMU, Zone-Turf, etc.), sélectionne le pronostic de la presse ou la liste des 8 chevaux favoris, et colle-les brut ci-dessous :")
+    
+    donnees_brutes = st.text_area(
+        "Données de la presse à analyser", 
+        height=150, 
+        placeholder="Exemple à coller :\n1 - Idao de Tillard (Favori, D4, forme excellente)\n4 - Horsy Dream (Régulier, ferré)\n7 - Go On Boy (Bel engagement)\n12 - Ampia Mede Sm (En baisse)..."
+    )
 
-    st.markdown(f"### 🏇 Programme des grands prix ({date_str})")
-    st.caption("Sélectionnez une course pour que l'IA cherche les partants en direct et génère ton ticket :")
+    bouton_analyse = st.button("🎯 GENERER LE TICKET PAR IA")
 
-    # Liste dynamique des courses majeures
-    if target_date.weekday() in [5, 6]:  # Week-end
-        courses_disponibles = [
-            f"R1 C4 - VINCENNES - Prix du Jour ({date_str})",
-            f"R1 C6 - VINCENNES - Course Européenne ({date_str})",
-            f"R2 C2 - CHANTILLY - Prix de la Piste ({date_str})",
-            f"R3 C3 - ENGHIEN - Prix d'Automne ({date_str})"
-        ]
-    else:  # Semaine
-        courses_disponibles = [
-            f"R1 C1 - VINCENNES - Quinté+ National ({date_str})",
-            f"R1 C4 - PARISLONGCHAMP - Grand Prix du Plat ({date_str})",
-            f"R2 C3 - CABOURG - Course Nocturne ({date_str})",
-            f"R4 C2 - CAEN - Prix des Ducs ({date_str})"
-        ]
-
-    course_selectionnee = None
-    for course in courses_disponibles:
-        if st.button(f"🎯 Calculer le ticket : {course.split(' - ')[0]}", key=course):
-            course_selectionnee = course
-
-    # Zone d'analyse si une course a été cliquée
-    if course_selectionnee:
+    if bouton_analyse:
         if not API_KEY:
-            st.warning("⚠️ S'il te plaît, ajoute ta clé API Gemini dans le menu de gauche pour activer l'IA.")
+            st.warning("⚠️ Ajoute ta clé API Gemini dans le menu de gauche.")
+        elif not donnees_brutes or not nom_course:
+            st.error("Veuillez remplir le nom de la course et y coller les données des chevaux.")
         else:
-            with st.spinner(f"🕵️‍♂️ L'IA scanne GenyCourses, PMU et Zone-Turf pour extraire les vrais partants et créer ton ticket..."):
+            with st.spinner("📊 L'IA applique les filtres mathématiques et élimine les faux favoris..."):
                 try:
                     genai.configure(api_key=API_KEY)
+                    model = genai.GenerativeModel(model_name="gemini-2.5-flash")
                     
-                    # CHANGEMENT DE STRATÉGIE CONSOLIDÉ : On utilise la propriété d'activation globale pour éviter les conflits de noms de champs
-                    model = genai.GenerativeModel(
-                        model_name="gemini-2.5-flash"
-                    )
-                    
-                    # PROMPT ULTRA-STRICT POUR FORCER LA SÉLECTION DES NUMÉROS
                     prompt = f"""
-                    Tu es un expert professionnel du Turf connecté aux données internet en temps réel du jour. Tu as accès aux bases de données et résultats. Tu as interdiction de donner des conseils généraux ou d'expliquer la méthodologie.
+                    Tu es un algorithme de tri et un expert professionnel du Turf. Tu dois analyser de manière STRICTE les données réelles fournies ci-dessous pour la course '{nom_course}'. Tu as interdiction d'inventer des chevaux qui ne sont pas dans la liste.
                     
-                    Effectue d'abord une recherche approfondie sur le web (via tes capacités internes de recherche) pour trouver les vrais partants officiels, les cotes actuelles et les analyses de la presse (Zone-Turf, Equidia, Paris-Turf) pour la course suivante : {course_selectionnee}.
+                    Voici les données brutes de la course :
+                    \"\"\"{donnees_brutes}\"\"\"
                     
-                    Génère ensuite un rapport final structuré EXACTEMENT ainsi, sans fioritures :
+                    En te basant UNIQUEMENT sur ces données textuelles, applique les règles suivantes :
+                    1. Repère le cheval qui a les meilleures garanties (mention 'excellent', 'D4', 'favori logique'). Il sera ton Simple Gagnant.
+                    2. Repère le cheval le plus régulier pour assurer le Simple Placé.
+                    3. Construis un Couplé/Trio logique avec les 3 meilleurs numéros de la liste.
+                    4. Identifie s'il y a un cheval mentionné comme 'fatigué', 'en baisse', ou 'ferré' alors qu'il est meilleur déferré, et place-le en "Cheval à éviter".
                     
-                    <h3>🏆 TICKET RECOMMANDÉ PMU</h3>
+                    Génère le rapport final structuré EXACTEMENT ainsi, sans aucune phrase d'introduction :
+                    
+                    <h3>🏆 TICKET RECOMMANDÉ PMU (VRAIS PARTANTS)</h3>
                     <ul>
-                        <li><b>Simple Gagnant :</b> [Insère ici le numéro du grand favori en gras, ex: **N°4** + son nom]</li>
-                        <li><b>Simple Placé Sécurité :</b> [Insère ici le numéro du cheval le plus régulier en gras, ex: **N°7** + son nom]</li>
-                        <li><b>Le Couplé ou Trio à tenter :</b> [Insère ici 3 numéros en gras séparés par des tirets]</li>
+                        <li><b>Simple Gagnant :</b> [Numéro + Nom du cheval choisi comme base gagnante dans la liste]</li>
+                        <li><b>Simple Placé Sécurité :</b> [Numéro + Nom du deuxième choix]</li>
+                        <li><b>Le Couplé ou Trio à tenter :</b> [3 numéros de la liste séparés par des tirets]</li>
                     </ul>
                     
-                    <h3>🧐 ANALYSE DES COMPORTEMENTS</h3>
-                    <p><b>Le cheval au top :</b> [Explique en une phrase pourquoi ton favori va gagner : ex: déferré, engagement visé...]</p>
-                    <p><b>Le cheval "Moins Bien" à éviter :</b> [Trouve un favori délaissé ou annoncé fatigué par son entraîneur ou en baisse de forme, donne son numéro en gras et explique pourquoi]</p>
-                    <p><b>Le Tocard / Outsider spéculatif :</b> [Un numéro en gras avec une belle cote à tenter en bout de ticket]</p>
-                    
-                    Respecte scrupuleusement ce plan. Utilise les données et bruits d'écuries les plus récents trouvés sur le web pour composer ce ticket réaliste. Donne des numéros.
+                    <h3>🧐 CRITÈRES RETENUS PAR L'IA</h3>
+                    <p><b>Le point fort du gagnant :</b> [Explique brièvement pourquoi ce cheval de la liste a été choisi]</p>
+                    <p><b>Le favori suspect à ÉVITER :</b> [Donne le numéro du cheval de la liste qui présente un risque (forme en baisse, mauvaise config)]</p>
                     """
                     
-                    # Demande explicite de recherche intégrée directement dans l'appel de contenu
-                    response = model.generate_content(
-                        prompt,
-                        tools=[{"google_search": {}}] if "google_search" not in str(e) else None
-                    )
+                    response = model.generate_content(prompt)
                     
                     st.markdown("---")
-                    st.markdown(f"### 📋 Pronostic de l'IA ({course_selectionnee.split(' - ')[0]})")
+                    st.markdown(f"### 📋 Pronostic Certifié : {nom_course}")
                     st.markdown(f"<div class='report-box'>{response.text}</div>", unsafe_allow_html=True)
                     
                 except Exception as e:
-                    # PLAN B DE SÉCURITÉ ABSOLUE : Si l'API refuse l'argument au runtime, on lance sans le paramètre bloquant
-                    try:
-                        model_direct = genai.GenerativeModel(model_name="gemini-2.5-flash")
-                        # On lui rappelle de se baser sur ses connaissances fraîches du jour
-                        response_direct = model_direct.generate_content(prompt)
-                        st.markdown("---")
-                        st.markdown(f"### 📋 Pronostic de l'IA ({course_selectionnee.split(' - ')[0]})")
-                        st.markdown(f"<div class='report-box'>{response_direct.text}</div>", unsafe_allow_html=True)
-                    except Exception as err_fatal:
-                        st.error(f"Une erreur est survenue lors de l'analyse : {err_fatal}")
+                    st.error(f"Une erreur est survenue lors de l'analyse : {e}")
