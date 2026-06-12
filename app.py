@@ -111,9 +111,10 @@ else:
                 try:
                     genai.configure(api_key=API_KEY)
                     
+                    # CORRECTION DU BUG : Utilisation de la structure d'objet dict pour activer la recherche Google
                     model = genai.GenerativeModel(
                         model_name="gemini-2.5-flash",
-                        tools="google_search"
+                        tools=[{"google_search": {}}]
                     )
                     
                     # PROMPT ULTRA-STRICT POUR FORCER LA SÉLECTION DES NUMÉROS
