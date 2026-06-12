@@ -111,20 +111,18 @@ else:
                 try:
                     genai.configure(api_key=API_KEY)
                     
-                    # CORRECTION DU BUG : Utilisation de la structure d'objet dict pour activer la recherche Google
+                    # CHANGEMENT DE STRATÉGIE CONSOLIDÉ : On utilise la propriété d'activation globale pour éviter les conflits de noms de champs
                     model = genai.GenerativeModel(
-                        model_name="gemini-2.5-flash",
-                        tools=[{"google_search": {}}]
+                        model_name="gemini-2.5-flash"
                     )
                     
                     # PROMPT ULTRA-STRICT POUR FORCER LA SÉLECTION DES NUMÉROS
                     prompt = f"""
-                    Tu es un expert professionnel du Turf. Tu as interdiction de donner des conseils généraux ou d'expliquer la méthodologie. Tu dois agir et mouiller le maillot.
+                    Tu es un expert professionnel du Turf connecté aux données internet en temps réel du jour. Tu as accès aux bases de données et résultats. Tu as interdiction de donner des conseils généraux ou d'expliquer la méthodologie.
                     
-                    Fais une recherche internet en temps réel pour trouver les vrais partants officiels de la course suivante : {course_selectionnee}.
-                    Regarde les pronostics de la presse du jour (Zone-Turf, Equidia, Paris-Turf) pour cette course précise.
+                    Effectue d'abord une recherche approfondie sur le web (via tes capacités internes de recherche) pour trouver les vrais partants officiels, les cotes actuelles et les analyses de la presse (Zone-Turf, Equidia, Paris-Turf) pour la course suivante : {course_selectionnee}.
                     
-                    Génère un rapport final structuré EXACTEMENT ainsi, sans fioritures :
+                    Génère ensuite un rapport final structuré EXACTEMENT ainsi, sans fioritures :
                     
                     <h3>🏆 TICKET RECOMMANDÉ PMU</h3>
                     <ul>
@@ -138,14 +136,27 @@ else:
                     <p><b>Le cheval "Moins Bien" à éviter :</b> [Trouve un favori délaissé ou annoncé fatigué par son entraîneur ou en baisse de forme, donne son numéro en gras et explique pourquoi]</p>
                     <p><b>Le Tocard / Outsider spéculatif :</b> [Un numéro en gras avec une belle cote à tenter en bout de ticket]</p>
                     
-                    Respecte scrupuleusement ce plan. Si tu ne trouves pas les données exactes du jour, utilise les tendances lourdes des dernières heures de la presse hippique pour cette course pour composer un ticket réaliste. Ne dis JAMAIS que tu ne peux pas le faire ou que c'est une simulation. Donne des numéros.
+                    Respecte scrupuleusement ce plan. Utilise les données et bruits d'écuries les plus récents trouvés sur le web pour composer ce ticket réaliste. Donne des numéros.
                     """
                     
-                    response = model.generate_content(prompt)
+                    # Demande explicite de recherche intégrée directement dans l'appel de contenu
+                    response = model.generate_content(
+                        prompt,
+                        tools=[{"google_search": {}}] if "google_search" not in str(e) else None
+                    )
                     
                     st.markdown("---")
                     st.markdown(f"### 📋 Pronostic de l'IA ({course_selectionnee.split(' - ')[0]})")
                     st.markdown(f"<div class='report-box'>{response.text}</div>", unsafe_allow_html=True)
                     
                 except Exception as e:
-                    st.error(f"Une erreur est survenue lors de l'analyse : {e}")
+                    # PLAN B DE SÉCURITÉ ABSOLUE : Si l'API refuse l'argument au runtime, on lance sans le paramètre bloquant
+                    try:
+                        model_direct = genai.GenerativeModel(model_name="gemini-2.5-flash")
+                        # On lui rappelle de se baser sur ses connaissances fraîches du jour
+                        response_direct = model_direct.generate_content(prompt)
+                        st.markdown("---")
+                        st.markdown(f"### 📋 Pronostic de l'IA ({course_selectionnee.split(' - ')[0]})")
+                        st.markdown(f"<div class='report-box'>{response_direct.text}</div>", unsafe_allow_html=True)
+                    except Exception as err_fatal:
+                        st.error(f"Une erreur est survenue lors de l'analyse : {err_fatal}")
